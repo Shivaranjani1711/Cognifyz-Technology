@@ -1,0 +1,38 @@
+import pandas as pd
+import folium
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+df = pd.read_csv("/content/Dataset .csv")
+
+df.dropna(subset=['Restaurant Name', 'Cuisines', 'City', 'Average Cost for two', 'Latitude', 'Longitude'], inplace=True)
+
+df['combined_features'] = df.apply(lambda row: f"{row['Cuisines']} {row['City']} {row['Average Cost for two']}", axis=1)
+
+vectorizer = TfidfVectorizer(stop_words='english')
+feature_matrix = vectorizer.fit_transform(df['combined_features'])
+
+def recommend_and_show_map(cuisine, city, budget, top_n=5):
+    # Combine user input
+    user_input = f"{cuisine} {city} {budget}"
+    user_vec = vectorizer.transform([user_input])
+    sim_scores = cosine_similarity(user_vec, feature_matrix).flatten()
+    top_indices = sim_scores.argsort()[-top_n:][::-1]
+    recommended_df = df.iloc[top_indices]
+    print("\nTop Recommended Restaurants:\n")
+    display(recommended_df[['Restaurant Name', 'Cuisines', 'City', 'Average Cost for two', 'Aggregate rating']])
+
+    map_center = [recommended_df['Latitude'].mean(), recommended_df['Longitude'].mean()]
+    restaurant_map = folium.Map(location=map_center, zoom_start=13)
+
+    for _, row in recommended_df.iterrows():
+        folium.Marker(
+            location=[row['Latitude'], row['Longitude']],
+            popup=f"{row['Restaurant Name']} ({row['Cuisines']}) - ₹{row['Average Cost for two']}",
+            tooltip=row['Restaurant Name']
+        ).add_to(restaurant_map)
+
+    return restaurant_map
+
+recommend_and_show_map("North Indian", "Delhi", "600", top_n=6)
+
