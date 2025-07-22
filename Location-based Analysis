@@ -1,0 +1,73 @@
+import pandas as pd
+
+data = pd.read_csv("/content/Dataset .csv")
+data.head()
+
+data.info()
+data.describe()
+data.columns
+
+grouped_city = data.groupby('City').agg({
+    'Restaurant Name': 'count',
+    'Aggregate rating': 'mean',
+    'Price range': 'mean'
+}).rename(columns={
+    'Restaurant Name': 'Restaurant Count',
+    'Aggregate rating': 'Avg Rating',
+    'Price range': 'Avg Price Range'
+}).sort_values(by='Restaurant Count', ascending=False)
+
+grouped_city.head(10)
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+top_cities = grouped_city.head(10).reset_index()
+
+plt.figure(figsize=(12,6))
+sns.barplot(x='City', y='Restaurant Count', data=top_cities)
+plt.title("Top 10 Cities by Number of Restaurants")
+plt.xticks(rotation=45)
+plt.show()
+
+top_cities_list = top_cities['City'].tolist()
+filtered_df = data[data['City'].isin(top_cities_list)]
+
+cuisine_count = filtered_df['Cuisines'].value_counts().head(15)
+
+plt.figure(figsize=(12,6))
+sns.barplot(y=cuisine_count.index, x=cuisine_count.values)
+plt.title("Top 15 Cuisines in Popular Cities")
+plt.xlabel("Count")
+plt.ylabel("Cuisines")
+plt.show()
+
+!pip install folium
+
+import pandas as pd
+import folium
+from folium.plugins import MarkerCluster
+
+
+data= data.dropna(subset=['Latitude', 'Longitude'])
+
+map_center = [data['Latitude'].mean(), data['Longitude'].mean()]
+restaurant_map = folium.Map(location=map_center, zoom_start=10, tiles='OpenStreetMap')
+
+marker_cluster = MarkerCluster().add_to(restaurant_map)
+
+for _, row in data.iterrows():
+    folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=(
+            f"<b>{row.get('Restaurant Name', 'N/A')}</b><br>"
+            f"City: {row.get('City', 'N/A')}<br>"
+            f"Locality: {row.get('Locality', 'N/A')}<br>"
+            f"Rating: {row.get('Aggregate rating', 'N/A')}<br>"
+            f"Cuisines: {row.get('Cuisines', 'N/A')}"
+        ),
+        tooltip=row.get('Restaurant Name', 'Restaurant')
+    ).add_to(marker_cluster)
+
+restaurant_map
+
